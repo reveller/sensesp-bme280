@@ -18,7 +18,26 @@
 #include "sensesp/system/lambda_consumer.h"
 #include "sensesp_app_builder.h"
 
+#include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+
 using namespace sensesp;
+
+#define BME_SCK 13
+#define BME_MISO 12
+#define BME_MOSI 11
+#define BME_CS 10
+
+#define SEALEVELPRESSURE_HPA (1013.25)
+
+Adafruit_BME280 bme; // I2C
+//Adafruit_BME280 bme(BME_CS); // hardware SPI
+//Adafruit_BME280 bme(BME_CS, BME_MOSI, BME_MISO, BME_SCK); // software SPI
+
+unsigned long delayTime;
+
 
 // The setup function performs one-time application initialization.
 void setup() {
@@ -35,6 +54,26 @@ void setup() {
                     //->set_wifi_access_point("My AP SSID", "my_ap_password")
                     //->set_sk_server("192.168.10.3", 80)
                     ->get_app();
+
+    unsigned status;
+    
+  // default settings
+  status = bme.begin();  
+  // You can also pass in a Wire library object like &Wire2
+  // status = bme.begin(0x76, &Wire2)
+  if (!status) {
+      Serial.println("Could not find a valid BME280 sensor, check wiring, address, sensor ID!");
+      Serial.print("SensorID was: 0x"); Serial.println(bme.sensorID(),16);
+      Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
+      Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
+      Serial.print("        ID of 0x60 represents a BME 280.\n");
+      Serial.print("        ID of 0x61 represents a BME 680.\n");
+      while (1) delay(10);
+  }
+  
+  Serial.println("-- Default Test --");
+  delayTime = 1000;
+
 
   // GPIO number to use for the analog input
   const uint8_t kAnalogInputPin = 36;
@@ -80,6 +119,41 @@ void setup() {
       [](bool input) { debugD("Digital input value changed: %d", input); });
 
   digital_input1->connect_to(digital_input1_consumer);
+
+  // BME280 Temperature, Pressure, Altitude and Humidty Sensor
+  //
+  // Create another digital input, this time with RepeatSensor. This approach
+  // can be used to connect external sensor library to SensESP!
+
+  const uint8_t kBME280Pin = 13;
+  const unsigned int kBME280Interval = 1000;
+
+  // Configure the pin. Replace this with your custom library initialization
+  // code!
+  pinMode(kDigitalInput2Pin, INPUT_PULLUP);
+
+  // Define a new RepeatSensor that reads the pin every 100 ms.
+  // Replace the lambda function internals with the input routine of your custom
+  // library.  // Create another digital input, this time with RepeatSensor. This approach
+  // can be used to connect external sensor library to SensESP!
+
+  const uint8_t kDigitalInput2Pin = 13;
+  const unsigned int kDigitalInput2Interval = 1000;
+
+  // Configure the pin. Replace this with your custom library initialization
+  // code!
+  pinMode(kDigitalInput2Pin, INPUT_PULLUP);
+
+  // Define a new RepeatSensor that reads the pin every 100 ms.
+  // Replace the lambda function internals with the input routine of your custom
+  // library.
+
+  // Again, test this yourself by connecting pin 15 to pin 13 with a jumper
+  // wire and see if the value changes!
+
+  auto digital_input2 = std::make_shared<RepeatSensor<bool>>(
+      kDigitalInput2Interval,
+      [kDigitalInput2Pin]() { return digitalRead(kDigitalInput2Pin); });
 
   // Create another digital input, this time with RepeatSensor. This approach
   // can be used to connect external sensor library to SensESP!
